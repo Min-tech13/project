@@ -1,0 +1,12 @@
+- name: Restart PostgreSQL master
+  systemd:
+    name: postgresql
+    state: restarted
+  when: inventory_hostname == groups['postgres_master'][0]
+
+- name: Wait for PostgreSQL master to be ready
+  wait_for:
+    port: "{{ postgresql_port }}"
+    host: "{{ hostvars[groups['postgres_master'][0]]['ansible_default_ipv4']['address'] }}"
+    delay: 5
+    timeout: 30

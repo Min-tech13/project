@@ -1,0 +1,210 @@
+---
+# Infrastructure Deployment for 3 Servers
+# Services distribution:
+# Master: Kafka, PostgreSQL Master, Redis
+# Worker1: Kafka, PostgreSQL Replica, Redis
+# Worker2: Kafka, PostgreSQL Replica, Redis
+
+# Step 1: Prerequisites - Install Docker on all servers
+- name: Install Docker and common prerequisites
+  hosts: all
+  become: yes
+  roles:
+    - docker
+  tags: docker
+
+# Step 2: Setup Kubernetes (optional)
+- name: Setup Kubernetes (if needed)
+  hosts: all
+  become: yes
+  tasks:
+    - name: Include Kubernetes role
+      include_role:
+        name: kube
+      when: kubernetes_enabled | default(false)
+  tags: kubernetes
+
+# Step 3: Deploy Kafka Cluster on all servers
+- name: Deploy Kafka Cluster
+  hosts: kafka_cluster
+  become: yes
+  roles:
+    - kafka
+  tags: kafka
+
+# Step 4: Deploy PostgreSQL Master
+- name: Deploy PostgreSQL Master
+  hosts: postgres_master
+  become: yes
+  roles:
+    - postgres
+  vars:
+    postgres_role: master
+  tags: postgres
+
+# Step 5: Deploy PostgreSQL Replicas
+- name: Deploy PostgreSQL Replicas
+  hosts: postgres_replicas
+  become: yes
+  roles:
+    - postgres
+  vars:
+    postgres_role: replica
+  tags: postgres
+
+# Step 6: Deploy Redis Cluster
+- name: Deploy Redis Cluster
+  hosts: redis_cluster
+  become: yes
+  roles:
+    - redis
+  tags: redis
+
+# Step 7: Configure firewall rules
+- name: Configure firewall
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install UFW
+      package:
+        name: ufw
+        state: present
+
+    - name: Reset UFW to defaults
+      ufw:
+        state: reset
+
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+
+    - name: Allow Kafka ports
+      ufw:
+        rule: allow
+        port: '{{ item }}'
+        proto: tcp
+      loop:
+        - '9092'  # Kafka
+        - '2181'  # Zookeeper
+        - '2888'  # Zookeeper peer
+        - '3888'  # Zookeeper leader
+      when: inventory_hostname in groups['kafka_cluster']
+
+    - name: Allow PostgreSQL port
+      ufw:
+        rule: allow
+        port: '5432'
+        proto: tcp
+      when: inventory_hostname in groups['postgres_cluster']
+
+    - name: Allow Redis port
+      ufw:
+        rule: allow
+        port: '6379'
+        proto: tcp
+      when: inventory_hostname in groups['redis_cluster']
+
+    - name: Allow inter-server communication
+      ufw:
+        rule: allow
+        from_ip: "{{ hostvars[item]['ansible_host'] }}"
+      loop: "{{ groups['all'] }}"
+      when: hostvars[item]['ansible_host'] != ansible_host
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+  tags: firewall
+
+# Step 8: Verification and Health Checks
+- name: Verify Services Health
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Wait for services to be ready
+      pause:
+        seconds: 30
+
+    - name: Check Kafka brokers
+      shell: |
+        /opt/kafka/kafka_2.13-3.1.0/bin/kafka-broker-api-versions.sh --bootstrap-server {{ item }}:9092
+      loop:
+        - "{{ hostvars['master']['ansible_host'] }}"
+        - "{{ hostvars['worker1']['ansible_host'] }}"
+        - "{{ hostvars['worker2']['ansible_host'] }}"
+      ignore_errors: yes
+      delegate_to: master
+      register: kafka_check
+
+    - name: Display Kafka check results
+      debug:
+        msg: "Kafka broker {{ item.item }} status: {{ 'OK' if item.rc == 0 else 'FAILED' }}"
+      loop: "{{ kafka_check.results }}"
+      when: kafka_check is defined
+
+    - name: Check PostgreSQL master
+      shell: |
+        psql -h {{ hostvars['master']['ansible_host'] }} -U postgres -c "SELECT version();"
+      environment:
+        PGPASSWORD: "{{ postgres_password | default('secure_password_123') }}"
+      ignore_errors: yes
+      delegate_to: master
+      register: postgres_master_check
+
+    - name: Display PostgreSQL master status
+      debug:
+        msg: "PostgreSQL master status: {{ 'OK' if postgres_master_check.rc == 0 else 'FAILED' }}"
+      when: postgres_master_check is defined
+
+    - name: Check PostgreSQL replication
+      shell: |
+        psql -h {{ hostvars['master']['ansible_host'] }} -U postgres -c "SELECT client_addr, state FROM pg_stat_replication;"
+      environment:
+        PGPASSWORD: "{{ postgres_password | default('secure_password_123') }}"
+      ignore_errors: yes
+      delegate_to: master
+      register: postgres_replication_check
+
+    - name: Display PostgreSQL replication status
+      debug:
+        msg: "PostgreSQL replication check: {{ postgres_replication_check.stdout if postgres_replication_check.rc == 0 else 'FAILED' }}"
+      when: postgres_replication_check is defined
+
+    - name: Check Redis nodes
+      shell: |
+        redis-cli -h {{ item }} -p 6379 ping
+      loop:
+        - "{{ hostvars['master']['ansible_host'] }}"
+        - "{{ hostvars['worker1']['ansible_host'] }}"
+        - "{{ hostvars['worker2']['ansible_host'] }}"
+      ignore_errors: yes
+      delegate_to: master
+      register: redis_check
+
+    - name: Display Redis check results
+      debug:
+        msg: "Redis node {{ item.item }} status: {{ 'OK' if item.rc == 0 else 'FAILED' }}"
+      loop: "{{ redis_check.results }}"
+      when: redis_check is defined
+
+    - name: Display service endpoints
+      debug:
+        msg:
+          - "=== Service Endpoints ==="
+          - "Kafka Brokers:"
+          - "  - {{ hostvars['master']['ansible_host'] }}:9092"
+          - "  - {{ hostvars['worker1']['ansible_host'] }}:9092"
+          - "  - {{ hostvars['worker2']['ansible_host'] }}:9092"
+          - "PostgreSQL:"
+          - "  - Master: {{ hostvars['master']['ansible_host'] }}:5432"
+          - "  - Replica1: {{ hostvars['worker1']['ansible_host'] }}:5432"
+          - "  - Replica2: {{ hostvars['worker2']['ansible_host'] }}:5432"
+          - "Redis Nodes:"
+          - "  - {{ hostvars['master']['ansible_host'] }}:6379"
+          - "  - {{ hostvars['worker1']['ansible_host'] }}:6379"
+          - "  - {{ hostvars['worker2']['ansible_host'] }}:6379"
+  tags: verify

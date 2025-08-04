@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Custom Nginx App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        p {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+        .highlight {
+            color: #ffeb3b;
+            font-weight: bold;
+        }
+        .version {
+            margin-top: 30px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 My Custom Nginx</h1>
+        <p>Добро пожаловать в мое кастомное приложение!</p>
+        <p>Это приложение развернуто с помощью <span class="highlight">Helm</span> в Kubernetes</p>
+        <p>Docker образ собран и загружен в Docker Hub</p>
+        <div class="version">
+            Version: 1.0.0 | Built with ❤️
+        </div>
+    </div>
+</body>
+</html>

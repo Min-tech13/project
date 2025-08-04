@@ -1,0 +1,55 @@
+- name: Set PostgreSQL user password
+  become_user: postgres
+  postgresql_user:
+    name: "{{ postgres_user }}"
+    password: "{{ postgres_password }}"
+    encrypted: yes
+  when: inventory_hostname == groups['postgres_master'][0]
+
+- name: Create replication user
+  become_user: postgres
+  postgresql_user:
+    name: "{{ replication_user }}"
+    password: "{{ replication_password }}"
+    role_attr_flags: "REPLICATION,LOGIN"
+    encrypted: yes
+  when: inventory_hostname == groups['postgres_master'][0]
+
+- name: Create application database
+  become_user: postgres
+  postgresql_db:
+    name: "{{ app_db_name }}"
+    encoding: UTF-8
+    template: template0
+  when: inventory_hostname == groups['postgres_master'][0]
+
+- name: Create application user
+  become_user: postgres
+  postgresql_user:
+    name: "{{ app_db_user }}"
+    password: "{{ app_db_password }}"
+    db: "{{ app_db_name }}"
+    priv: ALL
+    encrypted: yes
+  when: inventory_hostname == groups['postgres_master'][0]
+
+- name: Configure PostgreSQL master
+  template:
+    src: postgresql.conf.j2
+    dest: "{{ postgresql_config_dir }}/postgresql.conf"
+    owner: postgres
+    group: postgres
+    mode: '0644'
+    backup: yes
+  when: inventory_hostname == groups['postgres_master'][0]
+  notify: restart postgresql
+
+- name: Configure pg_hba.conf
+  template:
+    src: pg_hba.conf.j2
+    dest: "{{ postgresql_config_dir }}/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: '0640'
+    backup: yes
+  notify: restart postgresql

@@ -1,0 +1,55 @@
+- name: Create systemd service for Kafka
+  copy:
+    dest: /etc/systemd/system/kafka.service
+    content: |
+      [Unit]
+      Description=Apache Kafka Server
+      After=network.target
+
+      [Service]
+      User={{ kafka_user }}
+      ExecStart={{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/bin/kafka-server-start.sh {{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/config/server.properties
+      ExecStop={{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/bin/kafka-server-stop.sh
+      Restart=on-failure
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: reload systemd
+
+- name: Enable and start Kafka service
+  systemd:
+    name: kafka
+    enabled: yes
+    state: started
+
+- name: Create systemd service for ZooKeeper
+  copy:
+    dest: /etc/systemd/system/zookeeper.service
+    content: |
+      [Unit]
+      Description=Apache Zookeeper server
+      After=network.target
+
+      [Service]
+      Type=simple
+      User={{ kafka_user }}
+      ExecStart={{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/bin/zookeeper-server-start.sh {{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/config/zookeeper.properties
+      ExecStop={{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/bin/zookeeper-server-stop.sh
+      Restart=on-failure
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: reload systemd
+
+- name: Enable and start ZooKeeper service
+  systemd:
+    name: zookeeper
+    enabled: yes
+    state: started
+
+# # Handler to reload systemd after service file change
+# handlers:
+#   - name: reload systemd
+#     command: systemctl daemon-reload

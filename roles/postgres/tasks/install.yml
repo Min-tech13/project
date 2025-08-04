@@ -1,0 +1,27 @@
+- name: Install prerequisite packages
+  package:
+    name:
+      - wget
+      - ca-certificates
+    state: present
+
+- name: Add PostgreSQL official APT repository key
+  apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Add PostgreSQL official APT repository
+  apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Install PostgreSQL 14 and dependencies
+  package:
+    name:
+      - postgresql-14
+      - postgresql-contrib-14
+      - python3-psycopg2
+    state: present
