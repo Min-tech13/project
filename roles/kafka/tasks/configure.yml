@@ -1,0 +1,23 @@
+- name: Create Kafka data directory
+  file:
+    path: "{{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/logs"
+    state: directory
+    owner: "{{ kafka_user }}"
+
+# - name: Copy server.properties
+#   copy:
+#     src: server.properties
+#     dest: "{{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/config/server.properties"
+#     owner: "{{ kafka_user }}"
+#     group: "{{ kafka_user }}"
+#     mode: '0644'
+
+- name: Configure server.properties from template
+  template:
+    src: server.properties.j2
+    dest: "{{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/config/server.properties"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: '0644'
+
+

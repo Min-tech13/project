@@ -1,0 +1,16 @@
+image:
+  repository: mintemir/custom-nginx  # ИЗМЕНИТЕ НА ВАШЕ ЗНАЧЕНИЕ
+  tag: v1.0.0
+  pullPolicy: IfNotPresent
+
+# Количество подов
+replicas: 2
+
+# Настройки сервиса
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  host: nginx.local

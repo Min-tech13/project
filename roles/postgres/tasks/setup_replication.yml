@@ -1,0 +1,31 @@
+- name: Stop PostgreSQL on replicas
+  systemd:
+    name: postgresql
+    state: stopped
+
+- name: Remove existing data directory on replicas
+  file:
+    path: "{{ postgresql_data_dir }}"
+    state: absent
+
+- name: Create base backup for replicas
+  become_user: postgres
+  shell: |
+    PGPASSWORD="{{ replication_password }}" pg_basebackup \
+    -h {{ hostvars[groups['postgres_master'][0]]['ansible_default_ipv4']['address'] }} \
+    -D {{ postgresql_data_dir }} \
+    -U {{ replication_user }} \
+    -v -P -W -R
+
+- name: Set proper ownership of data directory
+  file:
+    path: "{{ postgresql_data_dir }}"
+    owner: postgres
+    group: postgres
+    recurse: yes
+
+- name: Start PostgreSQL on replicas
+  systemd:
+    name: postgresql
+    state: started
+    enabled: yes

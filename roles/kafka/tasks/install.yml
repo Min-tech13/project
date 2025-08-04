@@ -1,0 +1,47 @@
+- name: Install Java OpenJDK 11
+  apt:
+    name: openjdk-11-jdk
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Copy Kafka binaries from local role's files directory
+  copy:
+    src: kafka_{{ scala_version }}-{{ kafka_version }}.tgz
+    dest: /tmp/kafka.tgz
+    mode: '0644'
+
+- name: Ensure Kafka install directory exists
+  file:
+    path: "{{ kafka_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Extract Kafka
+  unarchive:
+    src: /tmp/kafka.tgz
+    dest: "{{ kafka_install_dir }}"
+    remote_src: yes
+    creates: "{{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}"
+
+- name: Create kafka user
+  user:
+    name: "{{ kafka_user }}"
+    shell: /bin/bash
+    create_home: yes
+
+- name: Fix ownership recursively for Kafka directory
+  file:
+    path: "{{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}"
+    state: directory
+    recurse: yes
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    mode: '0755'
+
+- name: Ensure kafka logs directory owned by kafka user
+  file:
+    path: "{{ kafka_install_dir }}/kafka_{{ scala_version }}-{{ kafka_version }}/logs"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_user }}"
+    recurse: yes
+    state: directory
