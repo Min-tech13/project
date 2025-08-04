@@ -1,228 +1,228 @@
-# Infrastructure Automation Project
+# Проект Автоматизации Инфраструктуры
 
-This project demonstrates a complete infrastructure setup using Ansible for automation, Kubernetes for container orchestration, and various monitoring solutions.
+Данный проект демонстрирует полную настройку инфраструктуры с использованием Ansible для автоматизации, Kubernetes для оркестрации контейнеров и различных решений мониторинга.
 
-## Project Structure
+## Структура Проекта
 
 ```
-├── ansible/                    # Ansible automation scripts
+├── ansible/                    # Скрипты автоматизации Ansible
 │   ├── roles/
-│   │   ├── docker/            # Docker installation role
-│   │   ├── kube/              # Kubernetes installation role
-│   │   ├── kafka/             # Kafka cluster setup
-│   │   └── postgres/          # PostgreSQL database setup
-├── docker/                    # Docker configurations
-├── kubernetes/                # Kubernetes manifests and Helm charts
-│   └── simple-nginx/          # Nginx Helm chart
-├── monitoring/                # Monitoring setup commands
-└── kubeadm-config.yml        # Kubernetes cluster configuration
+│   │   ├── docker/            # Роль установки Docker
+│   │   ├── kube/              # Роль установки Kubernetes
+│   │   ├── kafka/             # Настройка кластера Kafka
+│   │   └── postgres/          # Настройка базы данных PostgreSQL
+├── docker/                    # Конфигурации Docker
+├── kubernetes/                # Манифесты Kubernetes и Helm чарты
+│   └── simple-nginx/          # Helm чарт Nginx
+├── monitoring/                # Команды настройки мониторинга
+└── kubeadm-config.yml        # Конфигурация кластера Kubernetes
 ```
 
-## Prerequisites
+## Предварительные Требования
 
-- Multiple Linux servers (1 control plane + 2 worker nodes)
-- Ansible installed on control machine
-- SSH access to all target servers
+- Несколько Linux серверов (1 control plane + 2 worker узла)
+- Ansible установлен на управляющей машине
+- SSH доступ ко всем целевым серверам
 
-## Setup Instructions
+## Инструкции по Настройке
 
-### 1. Infrastructure Preparation with Ansible
+### 1. Подготовка Инфраструктуры с Помощью Ansible
 
-First, configure all nodes with Docker and Kubernetes prerequisites:
+Сначала настройте все узлы с Docker и предварительными требованиями Kubernetes:
 
 ```bash
-# Run the Ansible playbook to install Docker and Kubernetes on all nodes
+# Запустите Ansible playbook для установки Docker и Kubernetes на всех узлах
 ansible-playbook -i inventory.ini playbook.yml
 ```
 
-This playbook includes:
-- **docker role**: Installs Docker on all nodes
-- **kube role**: Installs Kubernetes components (kubelet, kubeadm, kubectl)
+Этот playbook включает:
+- **роль docker**: Устанавливает Docker на всех узлах
+- **роль kube**: Устанавливает компоненты Kubernetes (kubelet, kubeadm, kubectl)
 
-### 2. Kubernetes Cluster Initialization
+### 2. Инициализация Кластера Kubernetes
 
-#### Initialize the Control Plane
+#### Инициализация Control Plane
 
-On the control plane node:
+На узле control plane:
 
 ```bash
-# Initialize the cluster with custom configuration
+# Инициализация кластера с пользовательской конфигурацией
 sudo kubeadm init --config kubeadm-config.yml
 ```
 
-#### Configure kubectl Access
+#### Настройка Доступа kubectl
 
 ```bash
-# Set up kubectl for the current user
+# Настройка kubectl для текущего пользователя
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
-#### Verify Initial Setup
+#### Проверка Первоначальной Настройки
 
 ```bash
-# Check node status (should show NotReady initially)
+# Проверка статуса узла (изначально должен показывать NotReady)
 kubectl get nodes
 ```
 
-#### Install Calico Network Add-On
+#### Установка Сетевого Дополнения Calico
 
 ```bash
-# Install Calico CNI plugin
+# Установка плагина Calico CNI
 kubectl apply -f https://docs.projectcalico.org/v3.14/manifests/calico.yaml
 
-# Verify node is now Ready
+# Проверка что узел теперь Ready
 kubectl get nodes
 ```
 
-#### Join Worker Nodes
+#### Присоединение Worker Узлов
 
-Get the join command from control plane:
+Получите команду присоединения с control plane:
 
 ```bash
-# Generate join command
+# Генерация команды присоединения
 kubeadm token create --print-join-command
 ```
 
-Run the join command on each worker node:
+Выполните команду присоединения на каждом worker узле:
 
 ```bash
-# On worker nodes (run as root)
+# На worker узлах (выполнить как root)
 sudo kubeadm join <control-plane-ip>:6443 --token <token> --discovery-token-ca-cert-hash <hash>
 ```
 
-#### Verify Cluster
+#### Проверка Кластера
 
 ```bash
-# Confirm all nodes are Ready
+# Подтверждение что все узлы Ready
 kubectl get nodes
 ```
 
-### 3. Database and Messaging Setup
+### 3. Настройка Базы Данных и Системы Сообщений
 
-Deploy PostgreSQL and Kafka clusters using Ansible:
+Развертывание кластеров PostgreSQL и Kafka с помощью Ansible:
 
 ```bash
-# Deploy PostgreSQL cluster with replication
+# Развертывание кластера PostgreSQL с репликацией
 ansible-playbook -i inventory.ini playbook.yml --tags postgres
 
-# Deploy Kafka cluster
+# Развертывание кластера Kafka
 ansible-playbook -i inventory.ini playbook.yml --tags kafka
 ```
 
-**PostgreSQL Features:**
-- Master-slave replication setup
-- Custom configuration templates
-- Automated service management
+**Возможности PostgreSQL:**
+- Настройка репликации master-slave
+- Пользовательские шаблоны конфигурации
+- Автоматизированное управление сервисами
 
-**Kafka Features:**
-- Multi-broker cluster
-- Custom server properties
-- Service management and monitoring
+**Возможности Kafka:**
+- Мульти-брокерный кластер
+- Пользовательские свойства сервера
+- Управление сервисами и мониторинг
 
-### 4. Docker Application
+### 4. Docker Приложение
 
-Simple Docker application setup:
+Настройка простого Docker приложения:
 
 ```bash
-# Navigate to docker directory
+# Переход в директорию docker
 cd docker/
 
-# Build the Docker image
+# Сборка Docker образа
 docker build -t simple-app .
 
-# Run the container
+# Запуск контейнера
 docker run -d -p 80:80 simple-app
 ```
 
-### 5. Kubernetes Application Deployment
+### 5. Развертывание Kubernetes Приложения
 
-Deploy applications using Helm charts:
+Развертывание приложений с использованием Helm чартов:
 
 ```bash
-# Navigate to kubernetes directory
+# Переход в директорию kubernetes
 cd kubernetes/
 
-# Install the Nginx application using Helm
+# Установка Nginx приложения с помощью Helm
 helm install simple-nginx ./simple-nginx/
 
-# Verify deployment
+# Проверка развертывания
 kubectl get pods
 kubectl get services
 ```
 
-**Features:**
-- Helm chart for easy deployment
-- Horizontal Pod Autoscaler (HPA) configured
-- Ingress controller for external access
-- Service mesh ready
+**Возможности:**
+- Helm чарт для легкого развертывания
+- Настроенный Horizontal Pod Autoscaler (HPA)
+- Ingress контроллер для внешнего доступа
+- Готовность к service mesh
 
 #### Horizontal Pod Autoscaler
 
-The HPA is configured to automatically scale pods based on CPU utilization:
+HPA настроен для автоматического масштабирования подов на основе использования CPU:
 
 ```bash
-# Check HPA status
+# Проверка статуса HPA
 kubectl get hpa
 
-# Apply HPA configuration
+# Применение конфигурации HPA
 kubectl apply -f hpa.yaml
 ```
 
-### 6. Monitoring Setup
+### 6. Настройка Мониторинга
 
-Install Prometheus for cluster monitoring:
+Установка Prometheus для мониторинга кластера:
 
 ```bash
-# Navigate to monitoring directory
+# Переход в директорию monitoring
 cd monitoring/
 
-# Run monitoring setup commands
+# Выполнение команд настройки мониторинга
 ./commands
 ```
 
-This includes:
-- Prometheus server installation
-- Metrics collection configuration
-- Dashboard setup for cluster monitoring
+Это включает:
+- Установка сервера Prometheus
+- Конфигурация сбора метрик
+- Настройка дашборда для мониторинга кластера
 
-## Architecture Overview
+## Обзор Архитектуры
 
-1. **Infrastructure Layer**: Automated with Ansible
-   - Docker runtime on all nodes
-   - Kubernetes cluster setup
-   - Database and messaging services
+1. **Уровень Инфраструктуры**: Автоматизирован с помощью Ansible
+   - Docker runtime на всех узлах
+   - Настройка кластера Kubernetes
+   - Сервисы баз данных и системы сообщений
 
-2. **Container Orchestration**: Kubernetes
-   - Multi-node cluster with Calico networking
-   - Helm charts for application deployment
-   - Auto-scaling capabilities
+2. **Оркестрация Контейнеров**: Kubernetes
+   - Мульти-узловой кластер с сетью Calico
+   - Helm чарты для развертывания приложений
+   - Возможности автомасштабирования
 
-3. **Data Layer**: 
-   - PostgreSQL with replication
-   - Kafka for message streaming
+3. **Уровень Данных**: 
+   - PostgreSQL с репликацией
+   - Kafka для потоковой передачи сообщений
 
-4. **Monitoring**: Prometheus-based observability
+4. **Мониторинг**: Наблюдаемость на основе Prometheus
 
-## Key Components
+## Ключевые Компоненты
 
-- **Ansible Roles**: Modular automation for infrastructure setup
-- **Kubernetes Cluster**: Production-ready container orchestration
-- **Helm Charts**: Templated Kubernetes deployments
-- **Auto-scaling**: HPA for dynamic resource management
-- **Monitoring**: Comprehensive metrics collection
+- **Роли Ansible**: Модульная автоматизация для настройки инфраструктуры
+- **Кластер Kubernetes**: Готовая к продакшену оркестрация контейнеров
+- **Helm Чарты**: Шаблонизированные развертывания Kubernetes
+- **Автомасштабирование**: HPA для динамического управления ресурсами
+- **Мониторинг**: Комплексный сбор метрик
 
-## Usage
+## Использование
 
-1. Run Ansible playbooks to prepare infrastructure
-2. Initialize Kubernetes cluster following the step-by-step guide
-3. Deploy applications using provided Helm charts
-4. Monitor the system using Prometheus dashboards
+1. Запустите Ansible playbooks для подготовки инфраструктуры
+2. Инициализируйте кластер Kubernetes следуя пошаговому руководству
+3. Разверните приложения используя предоставленные Helm чарты
+4. Мониторьте систему используя дашборды Prometheus
 
-## Notes
+## Примечания
 
-- Ensure all nodes meet Kubernetes system requirements
-- Network connectivity between all nodes is required
-- Monitoring data persists according to Prometheus retention policies
-- HPA requires metrics-server to be running in the cluster
+- Убедитесь что все узлы соответствуют системным требованиям Kubernetes
+- Требуется сетевое подключение между всеми узлами
+- Данные мониторинга сохраняются согласно политикам хранения Prometheus
+- HPA требует запущенного metrics-server в кластере
