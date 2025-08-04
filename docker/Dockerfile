@@ -1,6 +1,6 @@
 FROM nginx:alpine
 
-# Копируем кастомный HTML файл
+# Копируем 
 COPY index.html /usr/share/nginx/html/
 
 # Открываем порт 80

@@ -1,0 +1,23 @@
+1. Установка Prometheus и Grafana (через Helm)
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+
+Установи Prometheus:
+
+helm install prometheus prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace
+
+Это установит Prometheus, Alertmanager, node-exporter, kube-state-metrics и Grafana в одном чарте.
+
+2. Доступ к Grafana
+
+kubectl get svc -n monitoring
+
+Найди grafana сервис. Пример для NodePort:
+
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+
+Открой http://localhost:3000
+Логин по умолчанию:
+admin / prom-operator
